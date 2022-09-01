@@ -31,7 +31,6 @@ const int ZDATA2 = 0x0F;
 const int ZDATA1 = 0x10;
 const int RANGE = 0x2C;
 const int POWER_CTL = 0x2D;
-//const int POWER_CTL = 0x5A;
 
 // Device values
 const int RANGE_2G = 0x01;
