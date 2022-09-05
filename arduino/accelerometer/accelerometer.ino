@@ -18,11 +18,11 @@ Flash Frequency 80MHz
 #define PIN_MOSI 23
 #define PIN_SS   26
 
-#define READOUT_INTERVAL_MS 1000
+#define READOUT_INTERVAL_MS 2
 
 // ---------------------------------------------------------
 
-SPISettings spiSettings(1000000, MSBFIRST , SPI_MODE0);
+SPISettings spiSettings(10000000, MSBFIRST , SPI_MODE0);
 adxl357 adxl;
 uint32_t tlast = 0;
 
@@ -31,13 +31,13 @@ void setup()
 	// Give peripherials time to start
 	delay(100);
 
-	Serial.begin(115200);
+	Serial.begin(1000000);
 
 	// Configure adxl
 	adxl.setPins(PIN_MISO, PIN_MOSI, PIN_SCK, PIN_SS);
 	adxl.init();
 	delay(10);
-	adxl.setRange(TEN_G);
+	adxl.writeRange(TEN_G);
 	adxl.enableSensor();
 	delay(10);
 
@@ -50,7 +50,7 @@ void setup()
 void loop()
 {
 	uint32_t tnow = millis();
-	if( tnow > tlast + READOUT_INTERVAL_MS )
+	if( tnow >= tlast + READOUT_INTERVAL_MS )
 	{
 		tlast = tnow;
 		adxl.readAllFromFifo();
