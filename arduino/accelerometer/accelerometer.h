@@ -8,3 +8,6 @@
 #define READOUT_INTERVAL_US 5000000 //2000
 
 #define WEBSERVER_INTERVAL_US 5000
+
+#define WIFI_SSID "netzwerk"
+#define WIFI_PASSWORD "Muckendorf1"
