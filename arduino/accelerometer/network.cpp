@@ -97,44 +97,33 @@ void handleDownload()
 		send_rootpage();
 		return;
 	}
-	if( len > 10 )
+
+	String firstline = "nr; x; y; z\n";
+
+	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    server.send ( 200, "text/plain", firstline.c_str());
+
+	int32_t i;
+
+	// max. 100 char per line, d.h. 100 byte bei utf8
+	// 5kB pro Paket sind ok, d.h. 50 lines
+
+	while( i < len )
 	{
-		len = 10;
-	} 
-
-	char temp[BUF_LEN_BYTE] = "";
-
-	strcat(temp,
-	"<html>\
-	<head>\
-    	<title>ESP32 Demo</title>\
-    	<style>\
-     		body { background-color: #FFFFFF; font-family: Arial, Helvetica, Sans-Serif; Color: #000000; }\
-    	</style>\
-  	</head>\
-	<body>"
-	);
-
-	for(int i=0; i<len; i++)
-	{
-		uint64_t entry = g_data.get_entry(startidx + i);
-		int32_t x = (entry & 0xFFFFF) - (1<<19);
-		int32_t y = ((entry>>20) & 0xFFFFF) - (1<<19);
-		int32_t z = ((entry>>40) & 0xFFFFF) - (1<<19);
-		
-		char line[LINE_LEN_CHAR];
-		snprintf(line, LINE_LEN_CHAR, "<p>%20d%20d%20d</p>", x, y, z);
-		strcat(temp, line);
+		String packet = "";
+		for(int32_t j=0; j<DATA_LINES_PER_SEND; j++)
+		{
+			if ( i+j >= len-1 )  break;
+			uint64_t entry = g_data.get_entry(startidx + i + j);
+			int32_t x = (entry & 0xFFFFF) - (1<<19);
+			int32_t y = ((entry>>20) & 0xFFFFF) - (1<<19);
+			int32_t z = ((entry>>40) & 0xFFFFF) - (1<<19);
+			packet += String(i+j) + "; " + String(x) + "; " + String(y) + "; " + String(z) + "\n";
+		}
+		server.sendContent(packet.c_str());
+		i += DATA_LINES_PER_SEND;
 	}
-
-	strcat(temp,	
-	"</body>\
-	</html>"
-	);
-
-	server.send(200, "text/html", temp);
 }
-
 
 // ###################################################################################################
 

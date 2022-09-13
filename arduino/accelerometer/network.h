@@ -10,7 +10,8 @@
 #include <ESPmDNS.h>
 
 #define BUF_LEN_BYTE 5000
-#define LINE_LEN_CHAR 200
+
+#define DATA_LINES_PER_SEND 50
 
 class Twebsite
 {
