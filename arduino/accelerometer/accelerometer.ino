@@ -16,11 +16,11 @@ Flash Frequency 80MHz
 // ---------------------------------------------------------
  
 adxl357 adxl;
-storage data;
-network net;
 
-int32_t t_readout   = 0;
-int32_t t_webserver = 0;
+int32_t time_readout   = 0;
+int32_t time_webserver = 0;
+
+int8_t state = STATE_IDLE;
 
 void setup()
 { 
@@ -30,7 +30,7 @@ void setup()
 	Serial.println("Starting up");
 
 	// allocate space in PSRAM
-	data.init(2*1024*1024);   // 2MB ... approx. 524000 int32 values
+	g_data.init(4*1024*1024);   // 4MB 
 	Serial.printf("Free PSRAM after Buffer allocation: %d\n", ESP.getFreePsram());
 
 	// Configure adxl
@@ -47,31 +47,62 @@ void setup()
 	Serial.print("Device Version: ");
 	Serial.println(adxl.readDeviceVersion());
 
-	net.init(WIFI_SSID, WIFI_PASSWORD);
+	g_website.init(WIFI_SSID, WIFI_PASSWORD);
 
-	t_readout = micros() - READOUT_INTERVAL_US;
-	t_webserver = micros() - WEBSERVER_INTERVAL_US;
+	time_readout   = micros() - READOUT_INTERVAL_US;
+	time_webserver = micros() - WEBSERVER_INTERVAL_US;
 }
 
 void loop()
 {
 	uint32_t tnow = micros();
-	if( tnow >= t_readout + READOUT_INTERVAL_US )
+	if( tnow >= time_readout + READOUT_INTERVAL_US )
 	{
-		t_readout = tnow;
+		time_readout = tnow;
 
-		int32_t xarr[BUFFER_SIZE_PER_AXIS];
-		int32_t yarr[BUFFER_SIZE_PER_AXIS];
-		int32_t zarr[BUFFER_SIZE_PER_AXIS];
-		uint8_t len;
-		adxl.readAllFromFifo(xarr, xarr, xarr, &len);
-		data.addMultiple(xarr, yarr, zarr, len);
+		switch(state)
+		{
+			case STATE_IDLE:
+				if(g_website.isCalibReq())
+				{	
+					g_website.clear_requests();
+					adxl.measureOffset();      // ist momentan noch blocking
+				}
+				if(g_website.isClearReq())
+				{
+					g_website.clear_requests();
+					g_data.clear();
+				}
+				if(g_website.isStartReq())
+				{
+					g_website.clear_requests();
+					g_data.start_record();
+					state = STATE_RECORDING;
+				}  
+				break;
+
+			case STATE_RECORDING:
+				int32_t xarr[BUFFER_SIZE_PER_AXIS];
+				int32_t yarr[BUFFER_SIZE_PER_AXIS];
+				int32_t zarr[BUFFER_SIZE_PER_AXIS];
+				uint8_t len;
+				adxl.readAllFromFifo(xarr, xarr, xarr, &len);
+				g_data.addMultiple(xarr, yarr, zarr, len);
+				if(g_website.isStopReq())
+				{
+					g_website.clear_requests();
+					g_data.end_record();
+					state = STATE_IDLE;
+				}
+				break;
+		}
+
 	}
 
-	if( tnow >= t_webserver + WEBSERVER_INTERVAL_US )
+	if( tnow >= time_webserver + WEBSERVER_INTERVAL_US )
 	{
-		t_webserver = tnow;
-		net.run();
+		time_webserver = tnow;
+		g_website.run();
 	}
 }
 

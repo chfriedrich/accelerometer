@@ -1,7 +1,10 @@
 
 #include "network.h"
+#include "storage.h"
 
 WebServer server(80);
+
+Twebsite g_website;
 
 void handleNotFound()
 {
@@ -21,7 +24,7 @@ void handleNotFound()
   server.send(404, "text/plain", message);
 }
 
-void handleRoot()
+void send_rootpage()
 {
 	char temp[BUF_LEN_BYTE];
 	int sec = millis() / 1000;
@@ -31,8 +34,7 @@ void handleRoot()
 	snprintf(temp, BUF_LEN_BYTE,
     "<html>\
 	<head>\
-    	<meta http-equiv='refresh' content='5'/>\
-    	<title>ESP32 Demo</title>\
+    	<title>Accelerometer</title>\
     	<style>\
      		body { background-color: #FFFFFF; font-family: Arial, Helvetica, Sans-Serif; Color: #000000; }\
     	</style>\
@@ -48,15 +50,98 @@ void handleRoot()
         <p>Uptime: %02d:%02d:%02d</p>\
 	</body>\
 	</html>",
-	hr, min % 60, sec % 60
+	hr, min%60, sec%60
 	);
 	server.send(200, "text/html", temp);
 }
 
+void handleRoot()
+{
+	send_rootpage();
+}
+
+void handleStart()
+{
+	g_website.setStartReq(1);
+	send_rootpage();
+}
+
+void handleStop()
+{
+	g_website.setStopReq(1);
+	send_rootpage();
+}
+
+void handleClear()
+{
+	g_website.setClearReq(1);
+	send_rootpage();
+}
+
+void handleCalibrate()
+{
+	g_website.setCalibReq(1);
+	send_rootpage();
+}
+
+void handleDownload()
+{
+	Serial.println("download button handler start");
+
+	int32_t startidx;
+	int32_t len;
+	g_data.get_record(0, startidx, len);
+
+	if( len <= 0 )
+	{
+		send_rootpage();
+		return;
+	}
+	if( len > 10 )
+	{
+		len = 10;
+	} 
+
+	char temp[BUF_LEN_BYTE] = "";
+
+	strcat(temp,
+	"<html>\
+	<head>\
+    	<title>ESP32 Demo</title>\
+    	<style>\
+     		body { background-color: #FFFFFF; font-family: Arial, Helvetica, Sans-Serif; Color: #000000; }\
+    	</style>\
+  	</head>\
+	<body>"
+	);
+
+	for(int i=0; i<len; i++)
+	{
+		uint64_t entry = g_data.get_entry(startidx + i);
+		int32_t x = (entry & 0xFFFFF) - (1<<19);
+		int32_t y = ((entry>>20) & 0xFFFFF) - (1<<19);
+		int32_t z = ((entry>>40) & 0xFFFFF) - (1<<19);
+		
+		char line[LINE_LEN_CHAR];
+		snprintf(line, LINE_LEN_CHAR, "<p>%20d%20d%20d</p>", x, y, z);
+		strcat(temp, line);
+	}
+
+	strcat(temp,	
+	"</body>\
+	</html>"
+	);
+
+	server.send(200, "text/html", temp);
+}
+
+
 // ###################################################################################################
 
-void network::init(const char* ssid, const char* password)
+void Twebsite::init(const char* ssid, const char* password)
 {
+	clear_requests();
+
 	// setup wifi
 	WiFi.mode(WIFI_STA);
   	WiFi.begin(ssid, password);
@@ -77,12 +162,26 @@ void network::init(const char* ssid, const char* password)
 	
 	// setup web server
 	server.on("/", handleRoot);
+	server.on("/start", handleStart);
+	server.on("/stop", handleStop);
+	server.on("/clear", handleClear);
+	server.on("/calibrate", handleCalibrate);
+	server.on("/download", handleDownload);
 	server.onNotFound(handleNotFound);	
 	server.begin();
 	Serial.println("HTTP server started");	
 }
 
-void network::run()
+void Twebsite::run()
 {
     server.handleClient();
+}
+
+void Twebsite::clear_requests()
+{
+	start_requested = 0;
+    stop_requested = 0;
+    clear_requested = 0;
+    calib_requested = 0;
+    download_requested = 0;
 }
