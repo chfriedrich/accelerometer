@@ -25,10 +25,10 @@ void storage::clear()
 
 void storage::addSingle(int32_t x, int32_t y, int32_t z)
 {
-    uint64_t x1 = (int64_t)x + (1<<19);
-    uint64_t y1 = (int64_t)y + (1<<19);
-    uint64_t z1 = (int64_t)z + (1<<19);
-    uint64_t entry = (z1<<40) + (y1<<20) + (x1);
+    uint64_t x1 = ( x + (int32_t)(1<<19) ) & 0xFFFFF;
+    uint64_t y1 = ( y + (int32_t)(1<<19) ) & 0xFFFFF;
+    uint64_t z1 = ( z + (int32_t)(1<<19) ) & 0xFFFFF;
+    uint64_t entry = (z1<<40) | (y1<<20) | (x1);
     data[wp] = entry;
     wp++;
 }

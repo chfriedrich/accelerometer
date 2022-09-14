@@ -40,7 +40,6 @@ void setup()
 	adxl.writeRange(TEN_G);
 	adxl.enableSensor();
 	delay(10);
-	adxl.measureOffset();
 
 	Serial.print("Device ID:      ");
 	Serial.println(adxl.readDeviceID());
@@ -48,6 +47,8 @@ void setup()
 	Serial.println(adxl.readDeviceVersion());
 
 	g_website.init(WIFI_SSID, WIFI_PASSWORD);
+
+	adxl.measureOffset();
 
 	time_readout   = micros() - READOUT_INTERVAL_US;
 	time_webserver = micros() - WEBSERVER_INTERVAL_US;
@@ -86,8 +87,9 @@ void loop()
 				int32_t yarr[BUFFER_SIZE_PER_AXIS];
 				int32_t zarr[BUFFER_SIZE_PER_AXIS];
 				uint8_t len;
-				adxl.readAllFromFifo(xarr, xarr, xarr, &len);
+				adxl.readAllFromFifo(xarr, yarr, zarr, len);
 				g_data.addMultiple(xarr, yarr, zarr, len);
+
 				if(g_website.isStopReq())
 				{
 					g_website.clear_requests();

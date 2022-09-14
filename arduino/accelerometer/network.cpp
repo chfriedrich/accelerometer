@@ -24,7 +24,7 @@ void handleNotFound()
   server.send(404, "text/plain", message);
 }
 
-void send_rootpage()
+void handleRoot()
 {
 	char temp[BUF_LEN_BYTE];
 	int sec = millis() / 1000;
@@ -45,7 +45,8 @@ void send_rootpage()
         <p><a href=\"/stop\"><button>Stop</button></a></p>\
         <p><a href=\"/clear\"><button>Clear</button></a></p>\
         <p><a href=\"/calib\"><button>Calibrate</button></a></p>\
-        <p><a href=\"/download\"><button>Download</button></a></p>\
+        <p><a href=\"/dlpretty\"><button>Download pretty</button></a></p>\
+		<p><a href=\"/dlfast\"><button>Download fast</button></a></p>\
         <p></p>\
         <p>Uptime: %02d:%02d:%02d</p>\
 	</body>\
@@ -55,46 +56,44 @@ void send_rootpage()
 	server.send(200, "text/html", temp);
 }
 
-void handleRoot()
-{
-	send_rootpage();
-}
-
 void handleStart()
 {
 	g_website.setStartReq(1);
-	send_rootpage();
+	server.sendHeader("Location", "/", true);  
+	server.send(302, "text/plain", "");
 }
 
 void handleStop()
 {
 	g_website.setStopReq(1);
-	send_rootpage();
+	server.sendHeader("Location", "/", true);  
+	server.send(302, "text/plain", "");
 }
 
 void handleClear()
 {
 	g_website.setClearReq(1);
-	send_rootpage();
+	server.sendHeader("Location", "/", true);  
+	server.send(302, "text/plain", "");
 }
 
 void handleCalibrate()
 {
 	g_website.setCalibReq(1);
-	send_rootpage();
+	server.sendHeader("Location", "/", true);  
+	server.send(302, "text/plain", "");
 }
 
-void handleDownload()
+void handleDlPretty()
 {
-	Serial.println("download button handler start");
-
 	int32_t startidx;
 	int32_t len;
 	g_data.get_record(0, startidx, len);
 
 	if( len <= 0 )
 	{
-		send_rootpage();
+		server.sendHeader("Location", "/", true);  
+		server.send(302, "text/plain", "");
 		return;
 	}
 
@@ -115,14 +114,18 @@ void handleDownload()
 		{
 			if ( i+j >= len-1 )  break;
 			uint64_t entry = g_data.get_entry(startidx + i + j);
-			int32_t x = (entry & 0xFFFFF) - (1<<19);
-			int32_t y = ((entry>>20) & 0xFFFFF) - (1<<19);
-			int32_t z = ((entry>>40) & 0xFFFFF) - (1<<19);
+			int32_t x = (int32_t)(entry & 0xFFFFF) - (1<<19);
+			int32_t y = (int32_t)((entry>>20) & 0xFFFFF) - (1<<19);
+			int32_t z = (int32_t)((entry>>40) & 0xFFFFF) - (1<<19);
 			packet += String(i+j) + "; " + String(x) + "; " + String(y) + "; " + String(z) + "\n";
 		}
 		server.sendContent(packet.c_str());
 		i += DATA_LINES_PER_SEND;
 	}
+}
+
+void handleDlFast()
+{
 }
 
 // ###################################################################################################
@@ -155,7 +158,8 @@ void Twebsite::init(const char* ssid, const char* password)
 	server.on("/stop", handleStop);
 	server.on("/clear", handleClear);
 	server.on("/calibrate", handleCalibrate);
-	server.on("/download", handleDownload);
+	server.on("/dlpretty", handleDlPretty);
+	server.on("/dlfast", handleDlFast);
 	server.onNotFound(handleNotFound);	
 	server.begin();
 	Serial.println("HTTP server started");	
@@ -172,5 +176,4 @@ void Twebsite::clear_requests()
     stop_requested = 0;
     clear_requested = 0;
     calib_requested = 0;
-    download_requested = 0;
 }
