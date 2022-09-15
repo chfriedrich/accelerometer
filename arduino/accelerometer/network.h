@@ -11,7 +11,6 @@
 
 #define BUF_LEN_BYTE 5000
 
-#define DATA_LINES_PER_SEND 50
 
 class Twebsite
 {

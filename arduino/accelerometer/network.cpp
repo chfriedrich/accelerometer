@@ -97,35 +97,77 @@ void handleDlPretty()
 		return;
 	}
 
-	String firstline = "nr; x; y; z\n";
-
-	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-    server.send ( 200, "text/plain", firstline.c_str());
-
-	int32_t i;
-
 	// max. 100 char per line, d.h. 100 byte bei utf8
 	// 5kB pro Paket sind ok, d.h. 50 lines
+	// ab 6kB pro Packet gibt es Probleme
+	int32_t lines_per_packet = 50;
+	char packet[5000];
+	char line[100];
 
+	sprintf(line, "%15s %15s %15s %15s\n", "NR", "X", "Y", "Z");
+	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    server.send ( 200, "text/plain", line);
+
+	int32_t i;
 	while( i < len )
 	{
-		String packet = "";
-		for(int32_t j=0; j<DATA_LINES_PER_SEND; j++)
+		packet[0] = '\0';
+		for(int32_t j=0; j<lines_per_packet; j++)
 		{
+
 			if ( i+j >= len-1 )  break;
 			uint64_t entry = g_data.get_entry(startidx + i + j);
 			int32_t x = (int32_t)(entry & 0xFFFFF) - (1<<19);
 			int32_t y = (int32_t)((entry>>20) & 0xFFFFF) - (1<<19);
 			int32_t z = (int32_t)((entry>>40) & 0xFFFFF) - (1<<19);
-			packet += String(i+j) + "; " + String(x) + "; " + String(y) + "; " + String(z) + "\n";
+			sprintf(line, "%15d %15d %15d %15d\n", i+j, x, y, z);
+			strcat(packet, line);
 		}
-		server.sendContent(packet.c_str());
-		i += DATA_LINES_PER_SEND;
+		server.sendContent(packet);
+		i += lines_per_packet;
 	}
 }
 
 void handleDlFast()
 {
+	int32_t startidx;
+	int32_t len;
+	g_data.get_record(0, startidx, len);
+
+	if( len <= 0 )
+	{
+		server.sendHeader("Location", "/", true);  
+		server.send(302, "text/plain", "");
+		return;
+	}
+
+	String firstline = "";
+	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    server.send ( 200, "text/plain", firstline.c_str());
+
+	// 64 Bit = 8 Byte = 16 hex Stellen
+	// Es werden aber nur 60 Bit verwendet, d.h. 15 hex Stellen
+	// max. 16 char per line (15 + newline), d.h. 16 byte bei utf8
+	// 5kB pro Paket sind ok, d.h. 300 lines
+	// ab 6kB pro Packet gibt es Probleme
+	int32_t lines_per_packet = 200;
+	char hexstring[20];
+	char packet[5000];
+
+	int32_t i;
+	while( i < len )
+	{
+		packet[0] = '\0';
+		for(int32_t j=0; j<lines_per_packet; j++)
+		{
+			if ( i+j >= len-1 )  break;
+			uint64_t entry = g_data.get_entry(startidx + i + j) & 0xFFFFFFFFFFFFFFF;
+			sprintf(hexstring, "%016llx\n", entry);
+			strcat(packet, hexstring);
+		}
+		server.sendContent(packet);
+		i += lines_per_packet;
+	}
 }
 
 // ###################################################################################################

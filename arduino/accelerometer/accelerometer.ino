@@ -54,6 +54,9 @@ void setup()
 	time_webserver = micros() - WEBSERVER_INTERVAL_US;
 }
 
+int32_t maxi = 0;
+int32_t mini = 0;
+
 void loop()
 {
 	uint32_t tnow = micros();
@@ -90,8 +93,17 @@ void loop()
 				adxl.readAllFromFifo(xarr, yarr, zarr, len);
 				g_data.addMultiple(xarr, yarr, zarr, len);
 
+				for(int i=0; i<len; i++)
+				{
+					if(yarr[i]>maxi) maxi=yarr[i];
+					if(yarr[i]<mini) mini=yarr[i];
+				}
+
 				if(g_website.isStopReq())
 				{
+					Serial.println("Maximum: " + String(maxi));
+					Serial.println("Minimum: " + String(mini));
+
 					g_website.clear_requests();
 					g_data.end_record();
 					state = STATE_IDLE;
